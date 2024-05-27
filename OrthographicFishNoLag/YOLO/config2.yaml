@@ -1,0 +1,34 @@
+# Data
+
+#path: /home/jbtrejo2/TranslatedFishPoseInPython_ForHal/data
+#train: images/train
+#val: images/val
+
+# YOLO was also modified for this version of the configuration 
+# so that it does not have to be split
+
+path: /home/jbtrejo2/PERFECTED/OrthographicFishNoLag/data/images/
+train: train/
+val: val/
+
+
+kpt_shape: [12, 3]
+#Just the eyes get flipped, at least based by the example
+flip_idx: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10]
+
+nc: 1
+
+mosaic: 0.0
+
+#Classes
+#names:
+#  0: zebrafishb
+#  1: zebrafishs1
+#  2: zebrafishs2
+#
+names:
+  0: zebrafishb
+
+
+
+

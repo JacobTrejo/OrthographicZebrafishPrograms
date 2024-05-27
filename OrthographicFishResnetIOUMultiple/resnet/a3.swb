@@ -1,0 +1,26 @@
+#!/bin/bash
+#SBATCH --job-name="example"
+#SBATCH --output="continue.%j.%N.out"
+#SBATCH --error="continue.%j.%N.err"
+#SBATCH --partition=x86
+#SBATCH --time=24:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --sockets-per-node=1
+#SBATCH --cores-per-socket=16
+#SBATCH --threads-per-core=2
+#SBATCH --mem-per-cpu=4000
+#SBATCH --gres=gpu:a100:2
+#SBATCH --export=ALL
+
+cd ~
+#cd ../../projects/jbtrejo2
+source python38-virtualenv/bin/activate
+cd ../../projects/jbtrejo2/orthographicFishResnet/Resnet
+
+#cpus-per-task=96
+
+python runme_four.py -e 100 -t ../data
+
+
