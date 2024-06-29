@@ -30,6 +30,12 @@ class Config:
     overlappingFishFrequency = .5
     # The following variable is the minimum distance 2 overlapping fishes will be
     maxOverlappingOffset = 10
+    # List which controls how many overlaps a single fish will have based on a normal random variable
+    # the values in the list are used as an upper bound on the amount
+    # it starts from 0 overlaps, 1 overlap, 2 overlap ....
+    # ex : for [.5, .95, 1.0] it implies a 50 % of the fish not having an overlap, 45% chance of an overlap with 1 fish
+    #      and a 5% chance of an overlap with 2 fish
+    overlapMarker = [.5, .95, 1.0]
 
     #   Thresholds
     # This threshold is used when sequential keypoints of a fish have an x or y value that are about the same

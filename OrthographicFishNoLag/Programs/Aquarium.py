@@ -1,7 +1,7 @@
 from Programs.Config import Config
 import numpy as np
 import cv2 as cv
-from Programs.programsForGeneratingFish import generateRandomConfiguration, generateRandomConfigurationNoLagChunks, generateRandomConfigurationFast
+from Programs.programsForGeneratingFish import generateRandomConfiguration, generateRandomConfigurationNoLagChunks, generateRandomConfigurationFast, generateRandomConfigurationFastStates
 from Programs.Auxilary import add_noise_static_noise, add_patchy_noise, mergeViews, createDepthArr
 from Programs.programsForDrawingImage import f_x_to_model_bigger
 # Configuration variables
@@ -12,7 +12,10 @@ class Aquarium:
     aquariumVariables = ['fishInAllViews', 'fishInEdges','overlapping']
     fishVectListKey = 'fishVectList'
 
-    def overloaded_constructor(self, **kwargs):
+    # upperbounds for  0, overlap, 1 fish overlap, 2 fish overlap ....
+    # overlapMarker = [.5, .95, 1.0]
+    overlapMarker = Config.overlapMarker
+    def overloaded_constructorOriginal(self, **kwargs):
         aquariumVariablesDict = {'fishInAllViews':0, 'fishInEdges':0, 'overlapping':0}
 
         wasAnAquariumVariableDetected = False
@@ -36,7 +39,41 @@ class Aquarium:
                     shouldItOverlap = True if np.random.rand() < Config.overlappingFishFrequency else False
                     if shouldItOverlap: overlappingFish += 1
                 # fishVectList = generateRandomConfiguration(fishesInView, fishesInEdge, overlappingFish)
-                fishVectList = generateRandomConfigurationNoLagChunks(fishesInView, fishesInEdge, overlappingFish)
+                #fishVectList = generateRandomConfigurationNoLagChunks(fishesInView, fishesInEdge, overlappingFish)
+
+                fishVectList = generateRandomConfigurationFast(fishesInView, fishesInEdge, overlappingFish)
+        return fishVectList
+
+    def overloaded_constructor(self, **kwargs):
+        aquariumVariablesDict = {'fishInAllViews':0, 'fishInEdges':0, 'overlapping':0}
+
+        wasAnAquariumVariableDetected = False
+        wasAnAquariumPassed = False
+        for key in kwargs:
+            if key in Aquarium.aquariumVariables:
+                aquariumVariablesDict[key] = kwargs.get(key)
+                wasAnAquariumVariableDetected = True
+            if key is Aquarium.fishVectListKey:
+                wasAnAquariumPassed = True
+                fishVectList = kwargs.get(key)
+
+        if not wasAnAquariumPassed:
+            if wasAnAquariumVariableDetected:
+                fishVectList = self.generateFishListGivenVariables(aquariumVariablesDict)
+            else:
+                overlapStates = []
+                fishesInView = np.random.randint(0, Config.maxFishesInView)
+                fishesInEdge = np.random.poisson(Config.averageFishInEdges)
+                overlappingFish = 0
+                for _ in range(fishesInView + fishesInEdge):
+                    overlapState = np.random.rand()
+                    overlapStates.append(overlapState)
+                    #shouldItOverlap = True if np.random.rand() < Config.overlappingFishFrequency else False
+                    #if shouldItOverlap: overlappingFish += 1
+                # fishVectList = generateRandomConfiguration(fishesInView, fishesInEdge, overlappingFish)
+                #fishVectList = generateRandomConfigurationNoLagChunks(fishesInView, fishesInEdge, overlappingFish)
+                #fishVectList = generateRandomConfigurationFast(fishesInView, fishesInEdge, overlappingFish)
+                fishVectList = generateRandomConfigurationFastStates(fishesInView, fishesInEdge, overlapStates, Aquarium.overlapMarker)
 
         return fishVectList
 

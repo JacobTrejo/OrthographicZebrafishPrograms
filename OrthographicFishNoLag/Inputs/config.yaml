@@ -11,4 +11,3 @@ dataDirectory: 'data'
 # Small values for debugging purposes
 amountOfData: 50000
 fractionForTraining: .9
-

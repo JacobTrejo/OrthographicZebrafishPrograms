@@ -1174,6 +1174,209 @@ def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
     return fishVectList + overLappingFishVectList
 
 
+def generateRandomConfigurationFastStates(fishInView, fishInEdges, OverlappingFish, overlapMarker):
+    averageSizeOfFish = Config.averageSizeOfFish
+    fishVectList = []
+
+    # generating fishes that are completely in the view, based on their keypoints
+    for _ in range(fishInView):
+        # Loop to keep on searching in case we randomly generate a fish that was not in the view
+        while True:
+            # Generating random fishVect
+            xVect = np.zeros((11))
+            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
+            idxlen = np.floor((fishlen - 62) / 1.05) + 1
+            seglen = 5.6 + idxlen * 0.1
+            seglen = seglen[0]
+            # These fish are on the top plane
+            z = 1
+            # seglen = 7.1
+
+            x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
+            fishVect = np.zeros((13))
+            fishVect[0] = seglen
+            fishVect[1] = z
+            fishVect[2:] = xVect
+
+            # Checking if it is in bounds
+            pts = x_seglen_to_3d_points(xVect, seglen)
+            if are_pts_in_bounds(pts) == False:
+                continue
+
+            # Checking if it interferes
+            if doesThisFishInterfereWithTheAquarium(fishVect, fishVectList):
+                continue
+
+            # The fish passed all the requirements, so we can add it to the fishVectList
+            fishVectList.append(fishVect)
+            break
+
+    # Generating fishes in the edges
+    # TODO: might want to try a different way, perhaps with shifting the fish
+    for _ in range(fishInEdges):
+
+        while True:
+            # The possible edge choices for one view are: the left edge, the right edge, the top and the bottom
+            # let the numbers 0 - 3 represent these choices respectively
+            edgeIdx = np.random.randint(0, 4)
+            xVect = np.zeros((11))
+
+            if edgeIdx < 2:
+                # We got the left or right, which means the x coordinate is constrained
+                if edgeIdx == 0:
+                    # We want to generate points around left edge
+                    x = (np.random.rand() - .5) * averageSizeOfFish
+                    # Got to add some offset if we want to generate all possible conformations
+                    # y = np.random.random_integers(0 - averageSizeOfFish/2, imageSizeY + averageSizeOfFish/2)
+                    y = np.random.randint(0 - averageSizeOfFish / 2, imageSizeY + averageSizeOfFish / 2)
+
+                else:
+                    # We want to generate a fish along the right edge
+                    x = (np.random.rand() - .5) * averageSizeOfFish + imageSizeX
+                    # Got to add some offset if we want to generate all possible conformations
+                    # y = np.random.random_integers(0 - averageSizeOfFish/2, imageSizeY + averageSizeOfFish/2)
+                    y = np.random.randint(0 - averageSizeOfFish / 2, imageSizeY + averageSizeOfFish / 2)
+            else:
+                # We got the top or bottom edge, which means the y coordinate is constrained
+                if edgeIdx == 2:
+                    # We want to generate a fish around the top edge
+                    # x = np.random.random_integers(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
+                    x = np.random.randint(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
+                    y = (np.random.rand() - .5) * averageSizeOfFish
+                else:
+                    # We want to generate a fish around the bottom edge
+                    # x = np.random.random_integers(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
+                    x = np.random.randint(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
+                    y = (np.random.rand() - .5) * averageSizeOfFish + imageSizeY
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
+            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
+            idxlen = np.floor((fishlen - 62) / 1.05) + 1
+            seglen = 5.6 + idxlen * 0.1
+            seglen = seglen[0]
+            fishVect = np.zeros((13))
+            fishVect[0] = seglen
+            fishVect[1] = 1
+            fishVect[2:] = xVect
+
+            pts = x_seglen_to_3d_points(xVect, seglen)
+            is_on_edge = is_fish_on_edge(pts)
+            if is_on_edge:
+                if not doesThisFishInterfereWithTheAquarium(fishVect, fishVectList):
+                    fishVectList.append(fishVect)
+                    break
+
+    # Generating Overlapping Fishes
+    # NOTE: Currently overlapping fish is defined as creating fishes that will overlap the previous fishes
+    # might be better if we redefine it something like pairs of overlapping fish, or maybe we can add more pairs
+
+    # clipping the value to stay consistent with the definition above
+    amountOfOverlappingFish = 0
+    for state in OverlappingFish:
+        if state > overlapMarker[0]: amountOfOverlappingFish += 1 # The first marker is the one we are overlapping on
+
+    amountList = []
+    for state in OverlappingFish:
+        amount = 0
+        for marker in overlapMarker:
+            if marker > state:
+                amountList.append(amount)
+                break
+            else:
+                amount += 1
+    amountOfOverlappingFish = 0
+    for amount in amountList:
+        if amount > 0: amountOfOverlappingFish += 1  # not the actual amount but the fish on the top that need an overlap
+
+
+    amountOfOverlappingFish = min(fishInView + fishInEdges, amountOfOverlappingFish)
+
+    # Inputs deciding what is the maximum offset when causing the fishes to overlap
+
+    maxOverlappingOffset = Config.maxOverlappingOffset
+
+    overLappingFishVectList = []
+    # We also want to overlap the fish in the edges
+    fishesToOverlapIdices = random.sample([*range(len(fishVectList))], amountOfOverlappingFish)
+
+
+    overLappingFishVectList = []
+    depth = 2 # starting on the second plane
+    for overLappingFishIdx in range(amountOfOverlappingFish):
+        fishVectToOverlap = fishVectList[fishesToOverlapIdices[overLappingFishIdx]]
+        ogSeglen = fishVectToOverlap[0]
+        ogXVect = fishVectToOverlap[2:]
+        ogPts = x_seglen_to_3d_points(ogXVect, ogSeglen)
+        amount = amountList[overLappingFishIdx]
+        for _ in range(amount):
+            while True:
+                ogFishKeypointToOverlap = np.random.randint(0, 12)
+                ogPoint = ogPts[:, ogFishKeypointToOverlap]
+
+                # The keypoint of the generated fish we want to use to cause the overlap
+                genFishKeypointToOverlap = np.random.randint(0, 12)
+
+                # Generating the fish
+                xVect = np.zeros((11))
+                fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
+                idxlen = np.floor((fishlen - 62) / 1.05) + 1
+                seglen = 5.6 + idxlen * 0.1
+                seglen = seglen[0]
+                # seglen = 7.1
+
+                x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
+                theta_array_idx = np.random.randint(0, 500000)
+                dtheta = theta_array[theta_array_idx, :]
+                xVect[:2] = [x, y]
+                xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+                xVect[3:] = dtheta
+                fishVect = np.zeros((13))
+                fishVect[0] = seglen
+                # These fish are on the bottom plane
+                fishVect[1] = depth
+                fishVect[2:] = xVect
+                pts = x_seglen_to_3d_points(xVect, seglen)
+                point = pts[:, genFishKeypointToOverlap]
+                distance = ogPoint - point
+                # adding some randomness
+                xOffSet = ((2 * np.random.rand()) - 1) * maxOverlappingOffset
+                yOffSet = ((2 * np.random.rand()) - 1) * maxOverlappingOffset
+                distance += np.array([xOffSet, yOffSet])
+                # Shifting the fish to cause the overlap
+                xVect[0] += distance[0]
+                xVect[1] += distance[1]
+                fishVect[2:] = xVect
+
+                if is_atleast_one_point_in_bounds(pts):
+                    overLappingFishVectList.append(fishVect)
+                    depth += 1
+                    break
+
+                # if not doesThisFishInterfereWithTheAquarium(fishVect, overLappingFishVectList):
+                #
+                #     # Adding the part that at least one of the points of the fish should be visible
+                #     # this is to stop the fish from disappearing when overlapping the fish on the edges
+                #     # NOTE: it might be a good idea to not have the fish overlap the ones on the edges
+                #     if is_atleast_one_point_in_bounds(pts):
+                #         overLappingFishVectList.append(fishVect)
+                #         break
+
+    # fish_list = []
+    # # Transforming the fish vectors into fish objects
+    # for fishVect in fishVectList + overLappingFishVectList:
+    #     fish = Fish(fishVect)
+    #     fish_list.append(fish)
+
+    # return fishVectList, overLappingFishVectList
+    return fishVectList + overLappingFishVectList
 
 
 

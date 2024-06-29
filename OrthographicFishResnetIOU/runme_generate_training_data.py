@@ -47,7 +47,7 @@ if __name__ == '__main__':
       startTime = time.time()
       amount = Config.amountOfData
       pool_obj = multiprocessing.Pool(initializer=init_pool_process)
-      amount = 5
+      amount = 2
       pool_obj.map(genData, range(0,amount))
       pool_obj.close()
       endTime = time.time()
