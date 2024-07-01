@@ -7,6 +7,7 @@ from scipy.stats import norm
 # import matplotlib.pyplot as plt
 import cv2
 import time
+from Programs.Config import Config
 import pdb
 
 
@@ -16,18 +17,42 @@ import pdb
 
 # Rotate along x axis. Angles are accepted in radians
 def rotx(angle):
+    """Rotation about x-axis by angle
+    Parameters
+        angle:  float
+                rotation angle in radians
+    returns:
+        out:    ndarray
+                rotation matrix
+    """
     M = np.array([[1, 0, 0], [0, np.cos(angle), -np.sin(angle)], [0, np.sin(angle), np.cos(angle)]])
     return M
 
 
 # Rotate along y axis. Angles are accepted in radians
 def roty(angle):
+    """Rotation about x-axis by angle
+    Parameters
+        angle:  float
+                rotation angle in radians
+    returns:
+        out:    ndarray
+                rotation matrix
+    """
     M = np.array([[np.cos(angle), 0, np.sin(angle)], [0, 1, 0], [-np.sin(angle), 0, np.cos(angle)]])
     return M
 
 
 # Rotate along z axis. Angles are accepted in radians
 def rotz(angle):
+    """Rotation about x-axis by angle
+    Parameters
+        angle:  float
+                rotation angle in radians
+    returns:
+        out:    ndarray
+                rotation matrix
+    """
     M = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
     return M
 
@@ -116,19 +141,19 @@ def project(model, dimension):
 
 
 # Render 2-D projection of the larval anterior (top view) in a 3-D canvas of dimensions size_lut x size_lut x size_lut
-def draw_anterior_b(seglen, theta, gamma, phi, dh1, dh2, dimension, size_lut, randomize):
+def draw_anterior_b(seglen, theta, phi, gamma, dh1, dh2, dimension, size_lut, randomize):
     XX = size_lut
     YY = size_lut
     ZZ = size_lut
 
     # Distance between eyes
-    d_eye = seglen * (randomize * normrnd(1, 0.05) + (1 - randomize))
+    d_eye = Config.d_eye * seglen * (randomize * normrnd(1, 0.05) + (1 - randomize))
     # # Note: temporary
     # d_eye = seglen * 1.18
     # Relative position of eyes, belly and head on the ball and stick model
-    c_eyes = 1.9 * (randomize * normrnd(1, 0.05) + (1 - randomize))
-    c_belly = 0.98 * (randomize * normrnd(1, 0.05) + (1 - randomize))
-    c_head = 1.04 * (randomize * normrnd(1, 0.05) + (1 - randomize))
+    c_eyes = Config.c_eyes * (randomize * normrnd(1, 0.05) + (1 - randomize))
+    c_belly = Config.c_belly * (randomize * normrnd(1, 0.05) + (1 - randomize))
+    c_head = Config.c_head * (randomize * normrnd(1, 0.05) + (1 - randomize))
 
     # # # Note: temporary
     # c_eyes = 1.7
@@ -171,9 +196,9 @@ def draw_anterior_b(seglen, theta, gamma, phi, dh1, dh2, dimension, size_lut, ra
     head_c = head_c - pt_original[:, 1, None]
     head_c = np.matmul(R, head_c) + pt_original[:, 1, None]
     # Set brightness of eyes, belly and head
-    eyes_br = 235 * (randomize * normrnd(1, 0.1) + (1 - randomize))
-    belly_br = eyes_br * 0.83 * (randomize * normrnd(1, 0.1) + (1 - randomize))
-    head_br = belly_br * 0.64 * (randomize * normrnd(1, 0.1) + (1 - randomize))
+    eyes_br = Config.eyes_br * (randomize * normrnd(1, 0.1) + (1 - randomize))
+    belly_br = eyes_br * Config.belly_br * (randomize * normrnd(1, 0.1) + (1 - randomize))
+    head_br = belly_br * Config.head_br * (randomize * normrnd(1, 0.1) + (1 - randomize))
     # # # NOTE: temporary
     # eyes_br = 255 * .9
     # # belly_br = 255 * .
@@ -190,15 +215,15 @@ def draw_anterior_b(seglen, theta, gamma, phi, dh1, dh2, dimension, size_lut, ra
     rand2_head = randomize * normrnd(1, 0.05) + (1 - randomize)
 
     # Set size of eyes, belly and head
-    eye_w = seglen * 0.22 * rand1_eye
-    eye_l = seglen * 0.35 * rand2_eye
-    eye_h = seglen * 0.3
-    belly_w = seglen * 0.29 * rand1_belly
-    belly_l = seglen * 0.86 * rand2_belly
-    belly_h = seglen * 0.34
-    head_w = seglen * 0.3 * rand1_head
-    head_l = seglen * 0.86 * rand2_head
-    head_h = seglen * 0.53
+    eye_w = seglen * Config.eye_w * rand1_eye
+    eye_l = seglen * Config.eye_l * rand2_eye
+    eye_h = seglen * Config.eye_h
+    belly_w = seglen * Config.belly_br * rand1_belly
+    belly_l = seglen * Config.belly_l * rand2_belly
+    belly_h = seglen * Config.belly_h
+    head_w = seglen * Config.head_w * rand1_head
+    head_l = seglen * Config.head_l * rand2_head
+    head_h = seglen * Config.head_h
     # # # NOTE: temporary
     # eye_w = seglen * .4
     # eye_l = seglen * .5
@@ -332,25 +357,52 @@ def gen_lut_b_tail(n, seglen, d1, d2, t, randomize):
 
     return graymodel
 
+def get_theta_from_2D_keypoints(keypoints_2D):
+    """Returns thetas for every tail segment in the lab frame. This is used to render the tail segments using gen_lut_b_tail
+    Parameters: 
+                keypoints_2D: numpy array
+                    2-D array of keypoints These are essentially the 2-D (orthographic) projections
+    Returns:
+                out: numpy array
+                     1-D numpy array of thetas
 
-# Convert parameters to a grayscale image
-# Returns grayscale image and the corresponding annotations of the 2-D pose
+    """
+    theta = np.zeros((keypoints_2D.shape[1],))
+    vec = np.diff(keypoints_2D, axis=1)
+    theta = np.arctan2(vec[1, :], vec[0, :])
+    return theta
+
 def f_x_to_model(x, seglen, randomize):
-    hp = x[0: 2]
-    dt = x[2: 11]
-    pt = np.zeros((2, 10))
-    theta = np.zeros((9, 1))
-    theta[0] = dt[0]
-    pt[:, 0] = hp
-
-    for n in range(0, 9):
-        R = np.array([[np.cos(dt[n]), -np.sin(dt[n])], [np.sin(dt[n]), np.cos(dt[n])]])
-        if n == 0:
-            vec = np.matmul(R, np.array([seglen, 0], dtype=R.dtype))
-        else:
-            vec = np.matmul(R, vec)
-            theta[n] = theta[n - 1] + dt[n]
-        pt[:, n + 1] = pt[:, n] + vec
+    """Renders a grayscale image using the 22-dimensional parameter of the physical model
+    Parameters:
+        x:  ndarray
+            22 dimensional parameters defining the physical model
+        seglen: float
+            length of each segment of the physical model
+        randomize: bool
+            whether to add noise in rendering the image (in terms of Gaussian pixel noise, but also in terms of the size of various parts of the model)
+    
+    Returns:
+        graymodel: ndarray
+                   np.uint8 2-D array of the grayscale image of the model
+    """
+    hp = x[0:3][:, None]
+    theta_0 = x[3]
+    phi_0 = x[12]
+    gamma_0 = x[21]
+    dtheta = x[4:12]
+    dphi = x[13:21]
+    theta = np.cumsum(np.concatenate(([0], dtheta), axis=1), axis=0)
+    phi = np.cumsum(np.concatenate(([0], phi), axis=1), axis=0)
+    dvec = seglen * np.array([np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), -np.sin(phi)]) # Explicitly coding the rotated vector for each segment in the fish frame of reference
+    origin = np.array([[0], [0], [0]])
+    vec = np.concatenate((origin, dvec), axis=1)
+    pt = np.cumsum(vec, axis=1)
+    pt = rotz(theta_0) @ roty(phi_0) @ rotx(gamma_0) @ pt
+    pt = np.array(pt)
+    pt = pt + np.tile(hp, (1, 10))
+    pt = pt[0:2, :]
+    
 
     # Construct headpix (larval anterior)
     size_lut = 49
@@ -358,7 +410,7 @@ def f_x_to_model(x, seglen, randomize):
 
     dh1 = pt[0, 1] - np.floor(pt[0, 1])
     dh2 = pt[1, 1] - np.floor(pt[1, 1])
-    fish_anterior, eye1_c, eye2_c, _, _, _, _ = draw_anterior_b(seglen, x[2], 0, 0, dh1, dh2, 2, size_lut, randomize)
+    fish_anterior, eye1_c, eye2_c, _, _, _, _ = draw_anterior_b(seglen, theta_0, phi_0, gamma_0, dh1, dh2, 2, size_lut, randomize)
     min_Y = pt[1, 1] - (size_half) + np.argwhere(np.sum(fish_anterior, axis=1) > 0)[0]
     max_Y = pt[1, 1] - (size_half) + np.argwhere(np.sum(fish_anterior, axis=1) > 0)[-1] + 1
     min_X = pt[0, 1] - (size_half) + np.argwhere(np.sum(fish_anterior, axis=0) > 0)[0]
@@ -409,6 +461,7 @@ def f_x_to_model(x, seglen, randomize):
     # Construct tailpix (larval posterior)
     size_lut = 29
     size_half = (size_lut + 1) / 2
+    theta = get_theta_from_2D_keypoints(pt[:, :10])
     for ni in range(0, 7):
         n = ni + 2
         coor_t1 = np.floor(pt[0, n])
@@ -441,28 +494,29 @@ def f_x_to_model(x, seglen, randomize):
 # Returns grayscale image and the corresponding annotations of the 2-D pose
 # USE THIS FOR POSE EVALUATION
 def f_x_to_model_evaluation(x, seglen, randomize, imageSizeX, imageSizeY):
-    hp = x[0: 2]
-    dt = x[2: 11]
-    pt = np.zeros((2, 10))
-    theta = np.zeros((9, 1))
-    theta[0] = dt[0]
-    pt[:, 0] = hp
-
-    for n in range(0, 9):
-        R = np.array([[np.cos(dt[n]), -np.sin(dt[n])], [np.sin(dt[n]), np.cos(dt[n])]])
-        if n == 0:
-            vec = np.matmul(R, np.array([seglen, 0], dtype=R.dtype))
-        else:
-            vec = np.matmul(R, vec)
-            theta[n] = theta[n - 1] + dt[n]
-        pt[:, n + 1] = pt[:, n] + vec
+    hp = x[0:3][:, None]
+    theta_0 = x[3]
+    phi_0 = x[12]
+    gamma_0 = x[21]
+    dtheta = x[4:12]
+    dphi = x[13:21]
+    theta = np.cumsum(np.concatenate(([0], dtheta), axis=1), axis=0)
+    phi = np.cumsum(np.concatenate(([0], dphi), axis=1), axis=0)
+    dvec = seglen * np.array([np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), -np.sin(phi)]) # Explicitly coding the rotated vector for each segment in the fish frame of reference
+    origin = np.array([[0], [0], [0]])
+    vec = np.concatenate((origin, dvec), axis=1)
+    pt = np.cumsum(vec, axis=1)
+    pt = rotz(theta_0) @ roty(phi_0) @ rotx(gamma_0) @ pt
+    pt = np.array(pt)
+    pt = pt + np.tile(hp, (1, 10))
+    pt = pt[0:2, :]
 
     # Construct headpix (larval anterior)
     size_lut = 49
     size_half = (size_lut + 1) / 2
     dh1 = pt[0, 1] - np.floor(pt[0, 1])
     dh2 = pt[1, 1] - np.floor(pt[1, 1])
-    fish_anterior, eye1_c, eye2_c, _, _, _, _ = draw_anterior_b(seglen, x[2], 0, 0, dh1, dh2, 2, size_lut, randomize)
+    fish_anterior, eye1_c, eye2_c, _, _, _, _ = draw_anterior_b(seglen, theta_0, phi_0, gamma_0, dh1, dh2, 2, size_lut, randomize)
     imblank = np.zeros((int(imageSizeY), int(imageSizeX)), dtype=np.uint8)
     headpix = imblank.copy()
     bodypix = imblank.copy()
@@ -483,6 +537,7 @@ def f_x_to_model_evaluation(x, seglen, randomize, imageSizeX, imageSizeY):
     # Construct tailpix (larval posterior)
     size_lut = 29
     size_half = (size_lut + 1) / 2
+    theta = get_theta_from_2D_keypoints(pt) # Why a separate function? : When the fish rolls and elevates, you can't just add theta_0 to theta to get all the segment angles in the lab frame
     for ni in range(0, 7):
         n = ni + 2
         coor_t1 = np.floor(pt[0, n])
@@ -584,21 +639,22 @@ def f_x_to_model_evaluation(x, seglen, randomize, imageSizeX, imageSizeY):
 def f_x_to_model_centered(x, seglen, randomize):
     smallImageSizeX, smallImageSizeY = 141, 141
 
-    hp = x[0: 2]
-    dt = x[2: 11]
-    pt = np.zeros((2, 10))
-    theta = np.zeros((9, 1))
-    theta[0] = dt[0]
-    pt[:, 0] = hp
-
-    for n in range(0, 9):
-        R = np.array([[np.cos(dt[n]), -np.sin(dt[n])], [np.sin(dt[n]), np.cos(dt[n])]])
-        if n == 0:
-            vec = np.matmul(R, np.array([seglen, 0], dtype=R.dtype))
-        else:
-            vec = np.matmul(R, vec)
-            theta[n] = theta[n - 1] + dt[n]
-        pt[:, n + 1] = pt[:, n] + vec
+    hp = x[0:3][:, None]
+    theta_0 = x[3]
+    phi_0 = x[12]
+    gamma_0 = x[21]
+    dtheta = x[4:12]
+    dphi = x[13:21]
+    theta = np.cumsum(np.concatenate(([0], dtheta)), axis=0).copy()
+    phi = np.cumsum(np.concatenate(([0], dphi)), axis=0).copy()
+    dvec = seglen * np.array([np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), -np.sin(phi)]) # Explicitly coding the rotated vector for each segment in the fish frame of reference
+    origin = np.array([[0], [0], [0]])
+    vec = np.concatenate((origin, dvec), axis=1)
+    pt = np.cumsum(vec, axis=1)
+    pt = rotz(theta_0) @ roty(phi_0) @ rotx(gamma_0) @ pt
+    pt = np.array(pt)
+    pt = pt + np.tile(hp, (1, 10))
+    pt = pt[0:2, :]
 
     # Construct headpix (larval anterior)
     size_lut = 49
@@ -606,7 +662,7 @@ def f_x_to_model_centered(x, seglen, randomize):
 
     dh1 = pt[0, 1] - np.floor(pt[0, 1])
     dh2 = pt[1, 1] - np.floor(pt[1, 1])
-    fish_anterior, eye1_c, eye2_c, _, _, _, _ = draw_anterior_b(seglen, x[2], 0, 0, dh1, dh2, 2, size_lut, randomize)
+    fish_anterior, eye1_c, eye2_c, _, _, _, _ = draw_anterior_b(seglen, theta_0, phi_0, gamma_0, dh1, dh2, 2, size_lut, randomize)
     min_Y = pt[1, 1] - (size_half) + np.argwhere(np.sum(fish_anterior, axis=1) > 0)[0]
     max_Y = pt[1, 1] - (size_half) + np.argwhere(np.sum(fish_anterior, axis=1) > 0)[-1] + 1
     min_X = pt[0, 1] - (size_half) + np.argwhere(np.sum(fish_anterior, axis=0) > 0)[0]
@@ -660,6 +716,7 @@ def f_x_to_model_centered(x, seglen, randomize):
                                                                             size_lut))]
 
     # Construct tailpix (larval posterior)
+    theta = get_theta_from_2D_keypoints(pt[:, :10])
     size_lut = 29
     size_half = (size_lut + 1) / 2
     for ni in range(0, 7):
@@ -763,8 +820,3 @@ def f_x_to_model_bigger(x, seglen, randomize, imageSizeX=648, imageSizeY=488):
     bCanvas = bCanvas.astype(np.uint8)
 
     return bCanvas, pt
-
-
-
-
-
