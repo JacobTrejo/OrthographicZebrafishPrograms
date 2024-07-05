@@ -3,6 +3,7 @@ import numpy as np
 import numpy.ma as ma
 import cv2 as cv
 from skimage.util import random_noise
+from scipy import signal
 
 
 # These are functions for getting fish with high iou
@@ -246,6 +247,8 @@ def mergeGreys(grays, depths):
     mergedGrays[ indicesToBlurr ] = maxes[indicesToBlurr]
 
     # NOTE: we could technically also blurr the depths?
+    # Added by Aniket. NOTE for Jacob: We can discuss this
+    mergedGrays = signal.medfilt2d(mergedGrays, kernel_size=3)
     return mergedGrays, mergedDepths
 
 def mergeViews(views_list):
