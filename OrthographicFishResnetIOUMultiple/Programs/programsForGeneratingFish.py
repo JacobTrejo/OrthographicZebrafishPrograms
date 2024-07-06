@@ -9,9 +9,6 @@ import numpy as np
 imageSizeY, imageSizeX = Config.imageSizeY, Config.imageSizeX
 theta_array = loadmat('Inputs/generated_pose_all_2D_50k.mat')
 theta_array = theta_array['generated_pose']
-angles_array = np.concatenate((theta_array, np.zeros(theta_array.shape)), axis=1)
-phi0_scale = 0.5 # Consider adding this to the config file 
-gamma0_scale = 0.3 # Consider adding this to the config file
 
 # This part is to get the indices, this part can be hardcoded #########
 amount_of_boxes = 9
@@ -74,40 +71,6 @@ def theta_array_to_pts(theta_array,x, seglen):
     pt[:,1,0] = hp[1]
     return pt
 
-def angles_array_to_keypoints(angles_array, x, seglen):
-    """Converts angle definitions of the physical model to an array of 2-D keypoints
-    Parameters:
-        angles_array:   ndarray
-                        numpy array of dthetas and dphis of multiple fish, stacked along the first axis (axis=0)
-        x:  ndarray
-            a list that stores x coor of the centroid, y coor of the centroid, theta_0, phi_0, and gamma_0
-        seglen: float
-                length of each segment of the physical model in pixels
-    Returns:
-        out:    ndarray
-                numpy arrray of 2-D keypoints of multiple fish
-        """
-    hp = x[0:3][:, None]
-    theta_0 = x[3] # heading
-    phi_0 = x[4] # inclination
-    gamma_0 = x[5] # roll
-    theta_array = angles_array[0:8]
-    phi_array = angles_array[8:16]
-    dtheta = np.concatenate(np.zeros((theta_array.shape[0])[:, None], theta_array), axis=1)
-    dphi = np.concatenate(np.zeros((phi_array.shape[0])[:, None], phi_array), axis=1)
-    theta = np.cumsum(dtheta, axis=1)
-    phi = np.cumsum(dphi, axis=1)
-
-    dvec = seglen * np.array([np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), -np.sin(phi)]) # Explicitly coding the rotated vector for each segment in the fish frame of reference
-    origin = np.array([[0], [0], [0]])
-    vec = np.concatenate((origin, dvec), axis=1)
-    pt = np.cumsum(vec, axis=1)
-    pt = rotz(theta_0) @ roty(phi_0) @ rotx(gamma_0) @ pt
-    pt = np.array(pt)
-    pt = pt + np.tile(hp, (1, 10))
-
-    return pt[:, 0:2, :] 
-
 def theta_array_pts_to_boxes(pts):
     centers = pts[..., 0:9] + pts[..., 1:10]
     centers *= .5
@@ -157,27 +120,8 @@ def theta_array_which_crash(theta_array_boxes, boxes):
                            (theta_array_boxes_stacked[:, 3, :] < permutated_fish_box_big[:, 1, :]), axis=1)
     return which_crashed
 
-def x_seglen_to_pts_short(x, seglen):
-    hp = x[0:3][:, None]
-    theta_0 = x[3]
-    phi_0 = x[12]
-    gamma_0 = x[21]
-    dtheta = x[4:12]
-    dphi = x[13:21]
-    print(dtheta.shape)
-    print('generating fish')
-    theta = np.cumsum(np.concatenate(([0], dtheta)), axis=0)
-    phi = np.cumsum(np.concatenate(([0], dphi)), axis=0)
-    dvec = seglen * np.array([np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), -np.sin(phi)]) # Explicitly coding the rotated vector for each segment in the fish frame of reference
-    origin = np.array([[0], [0], [0]])
-    vec = np.concatenate((origin, dvec), axis=1)
-    pt = np.cumsum(vec, axis=1)
-    pt = rotz(theta_0) @ roty(phi_0) @ rotx(gamma_0) @ pt
-    pt = np.array(pt)
-    pt = pt + np.tile(hp, (1, 10))
-    return pt[0:2, :] 
 
-def x_seglen_to_pts_short_2D(x, seglen):
+def x_seglen_to_pts_short(x, seglen):
     theta = x[2]
     hp = x[0:2]
     dt = x[3:11]
@@ -221,46 +165,6 @@ def pts_to_boxes_short(pts):
     boxes[:2,:] = centers + lenghts
     boxes[2:,:] = centers - lenghts
     return boxes
-
-def get_good_angle_indices_chuncks(x, y, theta0, phi0, gamma0, seglen, overlappingFishVectList, fishVectToOverlapp,chunk):
-    """
-        Works by now only consider chunks of the theta array
-        this is so that it runs faster since considering the full array takes almost 10 seconds, this takes a fraction
-        of a second
-    :param x: x coordinate of the fish
-    :param y: y coordinate of the fish
-    :param theta0: theta0 coordinate of the fish
-    :param seglen: segment length
-    :param overlappingFishVectList: the current list of overlapping fish
-    :param fishVectToOverlapp: the fish you want to overlap
-    :param chunk: number between 0 - 9, representing which chuck of the theta array when split into 10 pieces
-    :return: an array of size 50,000 representing the good indices of a chunk of the theta array
-    """
-    pts = angles_array_to_keypoints(angles_array[50000 * chunk : 50000 * (chunk + 1), ...], [x, y, 0, theta0, phi0, gamma0], seglen)
-    which_are_in_bounds = np.any((pts[:,0,:] < Config.imageSizeX) * (pts[:,0,:] > 0) * \
-                          (pts[:,1,:] < Config.imageSizeY) * (pts[:,1,:] > 0), axis=1)
-
-    # theta_array_boxes = theta_array_pts_to_boxes(
-    #     theta_array_to_pts(theta_array[50000 * chunk :50000 * (chunk + 1),...], [x,y,theta0], seglen))
-
-    theta_array_boxes = theta_array_pts_to_boxes(pts)
-
-    f2o_seglen, f2o_z, f2o_xvect = fishVectToOverlapp[0], fishVectToOverlapp[1], fishVectToOverlapp[2:]
-    # f2o_seglen, f2o_xvect = fishVectToOverlapp[0], fishVectToOverlapp[1:]
-
-    f2o_boxes = pts_to_boxes_short(x_seglen_to_pts_short(f2o_xvect, f2o_seglen))
-    # In this case we want them to actually crash so that they overlap
-    start = time.time()
-    which_angles_overlap = theta_array_which_crash(theta_array_boxes, f2o_boxes)
-    for overlappingFishVect in overlappingFishVectList:
-        o_seglen, o_z, o_xvect = overlappingFishVect[0], overlappingFishVect[1], overlappingFishVect[2:]
-        # o_seglen, o_xvect = overlappingFishVect[0], overlappingFishVect[1:]
-        o_boxes = pts_to_boxes_short(x_seglen_to_pts_short(o_xvect, o_seglen))
-        # we are inverting the ones that crash because those are bad since they crash with the surrounding fish
-        which_angles_overlap *= np.invert(theta_array_which_crash(theta_array_boxes, o_boxes) )
-    which_angles_overlap *= which_are_in_bounds
-
-    return which_angles_overlap
 
 def get_good_dtheta_indices_chuncks(x,y,theta0,seglen, overlappingFishVectList, fishVectToOverlapp,chunk):
     """
@@ -335,15 +239,15 @@ def x_seglen_to_3d_points_vectorized(x, seglen):
     dh1 = pt[0, 1] - np.floor(pt[0, 1])
     dh2 = pt[1, 1] - np.floor(pt[1, 1])
 
-    d_eye = Config.d_eye * seglen
+    d_eye = seglen
 
     XX = size_lut
     YY = size_lut
     ZZ = size_lut
 
-    c_eyes = Config.c_eyes 
-    c_belly = Config.c_belly
-    c_head = Config.c_head
+    c_eyes = 1.9
+    c_belly = 0.98
+    c_head = 1.04
     canvas = np.zeros((XX, YY, ZZ))
 
     theta, gamma, phi = x[2], 0, 0
@@ -377,81 +281,8 @@ def x_seglen_to_3d_points_vectorized(x, seglen):
     pt = np.concatenate([pt, eye1_c[0: 2], eye2_c[0: 2]], axis=1)
     return pt
 
+
 def x_seglen_to_3d_points(x, seglen):
-    """
-        Function that turns the x vector into the 3d points of the fish
-    :param x:
-    :param seglen:
-    :return:
-    """
-    hp = x[0:3][:,None]
-    theta_0 = x[3]
-    phi_0 = x[12]
-    gamma_0 = x[21]
-    dtheta = x[4:12]
-    dphi = x[13:21]
-    theta = np.cumsum(np.concatenate(([0], dtheta)))
-    phi = np.cumsum(np.concatenate(([0], dphi)))
-    dvec = seglen * np.array([np.cos(theta) * np.cos(phi), np.sin(theta) * np.cos(phi), -np.sin(phi)]) # Explicitly coding the rotated vector for each segment in the fish frame of reference
-    origin = np.array([[0], [0], [0]])
-    vec = np.concatenate((origin, dvec), axis=1)
-    pt = np.cumsum(vec, axis=1)
-    pt = rotz(theta_0) @ roty(phi_0) @ rotx(gamma_0) @ pt
-    pt = np.array(pt)
-    pt = pt + np.tile(hp, (1, 10))
-    pt = pt[0:2, :]
-
-    # Now calculating the eyes
-    size_lut = 49
-    size_half = (size_lut + 1) / 2
-
-    dh1 = pt[0, 1] - np.floor(pt[0, 1])
-    dh2 = pt[1, 1] - np.floor(pt[1, 1])
-
-    d_eye = seglen
-
-    XX = size_lut
-    YY = size_lut
-    ZZ = size_lut
-
-    c_eyes = Config.c_eyes
-    c_belly = Config.c_belly #NOTE: Doesn't seem useful to initialize here. Consider removing
-    c_head = Config.c_head #NOTE: Doesn't seem useful to initialize here. Consider removing
-    canvas = np.zeros((XX, YY, ZZ))
-
-    theta, phi, gamma = x[3], x[12], x[21]
-
-    R = rotz(theta) @ roty(phi) @ rotx(gamma)
-
-    # Initialize points of the ball and stick model in the canvas
-    pt_original = np.zeros((3, 3))
-    # pt_original_1 is the mid-point in Python's indexing format
-    pt_original[:, 1] = np.array([np.floor(XX / 2) + dh1, np.floor(YY / 2) + dh2, np.floor(ZZ / 2)])
-    pt_original[:, 0] = pt_original[:, 1] - np.array([seglen, 0, 0], dtype=pt_original.dtype)
-    pt_original[:, 2] = pt_original[:, 1] + np.array([seglen, 0, 0], dtype=pt_original.dtype)
-
-    eye1_c = np.array([[c_eyes * pt_original[0, 0] + (1 - c_eyes) * pt_original[0, 1]],
-                       [c_eyes * pt_original[1, 0] + (1 - c_eyes) * pt_original[1, 1] + d_eye / 2],
-                       [pt_original[2, 1] - seglen / 8]], dtype=pt_original.dtype)
-    eye1_c = eye1_c - pt_original[:, 1, None]
-    eye1_c = np.matmul(R, eye1_c) + pt_original[:, 1, None]
-
-    eye2_c = np.array([[c_eyes * pt_original[0, 0] + (1 - c_eyes) * pt_original[0, 1]],
-                       [c_eyes * pt_original[1, 0] + (1 - c_eyes) * pt_original[1, 1] - d_eye / 2],
-                       [pt_original[2, 1] - seglen / 8]], dtype=pt_original.dtype)
-    eye2_c = eye2_c - pt_original[:, 1, None]
-    eye2_c = np.matmul(R, eye2_c) + pt_original[:, 1, None]
-
-    eye1_c[0] = eye1_c[0] - (size_half - 1) + pt[0, 1]
-    eye1_c[1] = eye1_c[1] - (size_half - 1) + pt[1, 1]
-    eye2_c[0] = eye2_c[0] - (size_half - 1) + pt[0, 1]
-    eye2_c[1] = eye2_c[1] - (size_half - 1) + pt[1, 1]
-
-    pt = np.concatenate([pt, eye1_c[0: 2], eye2_c[0: 2]], axis=1)
-
-    return pt
-
-def x_seglen_to_3d_points_2D(x, seglen):
     """
         Function that turns the x vector into the 3d points of the fish
     :param x:
@@ -481,15 +312,15 @@ def x_seglen_to_3d_points_2D(x, seglen):
     dh1 = pt[0, 1] - np.floor(pt[0, 1])
     dh2 = pt[1, 1] - np.floor(pt[1, 1])
 
-    d_eye = Config.d_eye * seglen
+    d_eye = seglen
 
     XX = size_lut
     YY = size_lut
     ZZ = size_lut
 
-    c_eyes = Config.c_eyes
-    c_belly = Config.c_belly
-    c_head = Config.c_head
+    c_eyes = 1.9
+    c_belly = 0.98
+    c_head = 1.04
     canvas = np.zeros((XX, YY, ZZ))
 
     theta, gamma, phi = x[2], 0, 0
@@ -573,93 +404,6 @@ def addBoxes(pt, padding=.7):
 
 
 def doesThisFishInterfereWithTheAquarium(fishVect, fishVectList):
-    """
-        Function to check if the fish in question will crash with any of the other fishes
-    :param fishVect:
-    :param fishVectList:
-    :return:
-    """
-    # Preprocessing
-    fishVect = np.array(fishVect)
-    if len(fishVectList) == 0: return False
-    fishVectList = np.array(fishVectList)
-
-    # concatenating to avoid repetitions
-    fishVectList = np.concatenate((fishVect[np.newaxis, :], fishVectList), axis=0)
-
-    boxesList = []
-    for fishVectIdx in range(fishVectList.shape[0]):
-        fishVect = fishVectList[fishVectIdx, ...]
-
-        seglen, z, x = fishVect[0], fishVect[1], fishVect[2:]
-        pt = x_seglen_to_3d_points(x, seglen)
-        boxes_covering_fish = addBoxes(pt)
-
-        # Converting them to top bottom format
-        boxes_covering_fish_top_bottom_format = np.copy(boxes_covering_fish)
-        boxes_covering_fish_top_bottom_format[0, :] = \
-            boxes_covering_fish[0, :] + (boxes_covering_fish_top_bottom_format[2, :] / 2)
-        boxes_covering_fish_top_bottom_format[1, :] = \
-            boxes_covering_fish[0, :] - (boxes_covering_fish_top_bottom_format[2, :] / 2)
-        # For the y - dimension
-        boxes_covering_fish_top_bottom_format[2, :] = \
-            boxes_covering_fish[1, :] + (boxes_covering_fish_top_bottom_format[3, :] / 2)
-        boxes_covering_fish_top_bottom_format[3, :] = \
-            boxes_covering_fish[1, :] - (boxes_covering_fish_top_bottom_format[3, :] / 2)
-        # boxes_covering_fish is in format bigX, smallX, bigY, smallY
-
-        boxesList.append(boxes_covering_fish_top_bottom_format)
-    boxesInQuestion = boxesList[0]
-    boxesList = boxesList[1:]
-    cat = np.concatenate(boxesList, axis=1)
-    number_of_boxes_per_fish = 11
-
-    # boxes Arrays have the first row representing the biggest X value, the second row representing the smallest X value
-    # the third row the biggest Y value, the fourth row the smallest Y value
-
-    # Checking if they crashed in the x dimension
-    top_x_coors_boxes_in_question = boxesInQuestion[0, :]
-    bottom_x_coors_boxes = cat[1, :]
-    grid = np.array(np.meshgrid(top_x_coors_boxes_in_question, bottom_x_coors_boxes))
-    tops, bottoms = grid[0, ...], grid[1, ...]
-    points_where_top_edge_is_above_bottom_edge = tops > bottoms
-
-    bottom_x_coors_boxes_in_question = boxesInQuestion[1, :]
-    top_x_coors_boxes = cat[0, :]
-    grid = np.array(np.meshgrid(bottom_x_coors_boxes_in_question, top_x_coors_boxes))
-    bottoms, tops = grid[0], grid[1]
-    points_where_bottom_edge_is_above_top_edge = bottoms < tops
-
-    points_where_they_crash_in_the_x_dimension = points_where_top_edge_is_above_bottom_edge * \
-                                                 points_where_bottom_edge_is_above_top_edge
-
-    # Checking if they crashed in the y dimension
-    top_x_coors_boxes_in_question = boxesInQuestion[2, :]
-    bottom_x_coors_boxes = cat[3, :]
-    grid = np.array(np.meshgrid(top_x_coors_boxes_in_question, bottom_x_coors_boxes))
-    tops, bottoms = grid[0, ...], grid[1, ...]
-    points_where_top_edge_is_above_bottom_edge = tops > bottoms
-
-    bottom_x_coors_boxes_in_question = boxesInQuestion[3, :]
-    top_x_coors_boxes = cat[2, :]
-    grid = np.array(np.meshgrid(bottom_x_coors_boxes_in_question, top_x_coors_boxes))
-    bottoms, tops = grid[0], grid[1]
-    points_where_bottom_edge_is_above_top_edge = bottoms < tops
-
-    points_where_they_crash_in_the_y_dimension = points_where_top_edge_is_above_bottom_edge * \
-                                                 points_where_bottom_edge_is_above_top_edge
-
-    points_where_they_crashed = points_where_they_crash_in_the_x_dimension * points_where_they_crash_in_the_y_dimension
-
-    if np.any(points_where_they_crashed):
-        # print('Invalid Fish')
-        return True
-    else:
-        # print('Valid Fish')
-        return False
-
-
-def doesThisFishInterfereWithTheAquarium_2D(fishVect, fishVectList):
     """
         Function to check if the fish in question will crash with any of the other fishes
     :param fishVect:
@@ -884,7 +628,7 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
         # Loop to keep on searching in case we randomly generate a fish that was not in the view
         while True:
             # Generating random fishVect
-            xVect = np.zeros((22))
+            xVect = np.zeros((11))
             fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
             idxlen = np.floor((fishlen - 62) / 1.05) + 1
             seglen = 5.6 + idxlen * 0.1
@@ -894,16 +638,12 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
             # seglen = 7.1
 
             x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, 0:8]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-            fishVect = np.zeros((24))
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
+            fishVect = np.zeros((13))
             fishVect[0] = seglen
             fishVect[1] = z
             fishVect[2:] = xVect
@@ -929,7 +669,7 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
             # The possible edge choices for one view are: the left edge, the right edge, the top and the bottom
             # let the numbers 0 - 3 represent these choices respectively
             edgeIdx = np.random.randint(0, 4)
-            xVect = np.zeros((22))
+            xVect = np.zeros((11))
 
             if edgeIdx < 2:
                 # We got the left or right, which means the x coordinate is constrained
@@ -958,18 +698,18 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
                     # x = np.random.random_integers(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
                     x = np.random.randint(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
                     y = (np.random.rand() - .5) * averageSizeOfFish + imageSizeY
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, 0:8]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-            fishVect = np.zeros((24))
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
+            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
+            idxlen = np.floor((fishlen - 62) / 1.05) + 1
+            seglen = 5.6 + idxlen * 0.1
+            seglen = seglen[0]
+            fishVect = np.zeros((13))
             fishVect[0] = seglen
-            fishVect[1] = z
+            fishVect[1] = 1
             fishVect[2:] = xVect
 
             pts = x_seglen_to_3d_points(xVect, seglen)
@@ -985,6 +725,7 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
 
     # clipping the value to stay consistent with the definition above
     OverlappingFish = min(fishInView + fishInEdges, OverlappingFish)
+
     # Inputs deciding what is the maximum offset when causing the fishes to overlap
 
     maxOverlappingOffset = Config.maxOverlappingOffset
@@ -1015,7 +756,7 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
 
 
             # Generating the fish
-            xVect = np.zeros((22))
+            xVect = np.zeros((11))
             fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
             idxlen = np.floor((fishlen - 62) / 1.05) + 1
             seglen = 5.6 + idxlen * 0.1
@@ -1023,18 +764,15 @@ def generateRandomConfiguration(fishInView, fishInEdges, OverlappingFish):
             # seglen = 7.1
 
             x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, 0:8]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-            fishVect = np.zeros((24))
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
+            fishVect = np.zeros((13))
             fishVect[0] = seglen
-            fishVect[1] = z
+            # These fish are on the bottom plane
+            fishVect[1] = 2
             fishVect[2:] = xVect
             pts = x_seglen_to_3d_points(xVect, seglen)
             point = pts[:, genFishKeypointToOverlap]
@@ -1076,181 +814,6 @@ def generateRandomConfigurationNoLagChunks(fishInView, fishInEdges, OverlappingF
         # Loop to keep on searching in case we randomly generate a fish that was not in the view
         while True:
             # Generating random fishVect
-            xVect = np.zeros((22))
-            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
-            idxlen = np.floor((fishlen - 62) / 1.05) + 1
-            seglen = 5.6 + idxlen * 0.1
-            seglen = seglen[0]
-            # These fish are on the top plane
-            z = 1
-            # seglen = 7.1
-
-            x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, 0:8]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-            fishVect = np.zeros((24))
-            fishVect[0] = seglen
-            fishVect[1] = z
-            fishVect[2:] = xVect
-
-            # Checking if it is in bounds
-            pts = x_seglen_to_3d_points(xVect, seglen)
-            if are_pts_in_bounds(pts) == False:
-                continue
-
-            # Checking if it interferes
-            if doesThisFishInterfereWithTheAquarium(fishVect, fishVectList):
-                continue
-
-            # The fish passed all the requirements, so we can add it to the fishVectList
-            fishVectList.append(fishVect)
-            break
-
-    # Generating fishes in the edges
-    # TODO: might want to try a different way, perhaps with shifting the fish
-    for _ in range(fishInEdges):
-
-        while True:
-            # The possible edge choices for one view are: the left edge, the right edge, the top and the bottom
-            # let the numbers 0 - 3 represent these choices respectively
-            edgeIdx = np.random.randint(0, 4)
-            xVect = np.zeros((22))
-
-            if edgeIdx < 2:
-                # We got the left or right, which means the x coordinate is constrained
-                if edgeIdx == 0:
-                    # We want to generate points around left edge
-                    x = (np.random.rand() - .5) * averageSizeOfFish
-                    # Got to add some offset if we want to generate all possible conformations
-                    # y = np.random.random_integers(0 - averageSizeOfFish/2, imageSizeY + averageSizeOfFish/2)
-                    y = np.random.randint(0 - averageSizeOfFish / 2, imageSizeY + averageSizeOfFish / 2)
-
-                else:
-                    # We want to generate a fish along the right edge
-                    x = (np.random.rand() - .5) * averageSizeOfFish + imageSizeX
-                    # Got to add some offset if we want to generate all possible conformations
-                    # y = np.random.random_integers(0 - averageSizeOfFish/2, imageSizeY + averageSizeOfFish/2)
-                    y = np.random.randint(0 - averageSizeOfFish / 2, imageSizeY + averageSizeOfFish / 2)
-            else:
-                # We got the top or bottom edge, which means the y coordinate is constrained
-                if edgeIdx == 2:
-                    # We want to generate a fish around the top edge
-                    # x = np.random.random_integers(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
-                    x = np.random.randint(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
-                    y = (np.random.rand() - .5) * averageSizeOfFish
-                else:
-                    # We want to generate a fish around the bottom edge
-                    # x = np.random.random_integers(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
-                    x = np.random.randint(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
-                    y = (np.random.rand() - .5) * averageSizeOfFish + imageSizeY
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, 0:8]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
-            idxlen = np.floor((fishlen - 62) / 1.05) + 1
-            seglen = 5.6 + idxlen * 0.1
-            seglen = seglen[0]
-            fishVect = np.zeros((24))
-            fishVect[0] = seglen
-            fishVect[1] = 1
-            fishVect[2:] = xVect
-
-            pts = x_seglen_to_3d_points(xVect, seglen)
-            is_on_edge = is_fish_on_edge(pts)
-            if is_on_edge:
-                if not doesThisFishInterfereWithTheAquarium(fishVect, fishVectList):
-                    fishVectList.append(fishVect)
-                    break
-
-    # Generating Overlapping Fishes
-    # NOTE: Currently overlapping fish is defined as creating fishes that will overlap the previous fishes
-    # might be better if we redefine it something like pairs of overlapping fish, or maybe we can add more pairs
-
-    # clipping the value to stay consistent with the definition above
-    OverlappingFish = min(fishInView + fishInEdges, OverlappingFish)
-
-    # Inputs deciding what is the maximum offset when causing the fishes to overlap
-
-    maxOverlappingOffset = Config.maxOverlappingOffset
-
-    overLappingFishVectList = []
-    # We also want to overlap the fish in the edges
-    fishesToOverlapIdices = random.sample([*range(len(fishVectList))], OverlappingFish)
-    for overLappingFishIdx in range(OverlappingFish):
-
-        fishVectToOverlap = fishVectList[fishesToOverlapIdices[overLappingFishIdx]]
-        ogSeglen = fishVectToOverlap[0]
-        ogXVect = fishVectToOverlap[2:]
-        ogPts = x_seglen_to_3d_points(ogXVect, ogSeglen)
-
-        while True:
-            
-            # The keypoint idx of the original fish we want to overlap
-            ogFishKeypointToOverlap = np.random.randint(0, 12)
-            ogPoint = ogPts[:, ogFishKeypointToOverlap]
-
-            point_of_new_fish = ogPoint + np.array([ 2*(np.random.rand() -1) * maxOverlappingOffset,
-                                                     2*(np.random.rand() -1) * maxOverlappingOffset])
-
-            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
-            idxlen = np.floor((fishlen - 62) / 1.05) + 1
-            seglen = 5.6 + idxlen * 0.1
-            seglen = seglen[0]
-            theta0 = np.random.rand(1)[0] * 2 * np.pi
-            phi0 = np.random.normal(loc=0, scale=phi0_scale) * np.pi / 2
-            gamma0 = np.random.normal(loc=0, scale=gamma0_scale) * np.pi / 2
-
-            # the chunk number represents which part of the theta array we are considering
-            chunk = np.random.randint(0,10)
-            good_angle_indices = get_good_angle_indices_chuncks(
-                point_of_new_fish[0], point_of_new_fish[1], theta0, phi0, gamma0, seglen, overLappingFishVectList, fishVectToOverlap, chunk)
-
-            amount_of_good = len((angles_array[50000 * chunk:50000 * (chunk + 1),...])[good_angle_indices, ...])
-            # None of those points where good
-            if amount_of_good == 0 : continue
-
-            random_dtheta = (angles_array[50000 * chunk :50000 * (chunk + 1), 0:8])[good_angle_indices, ...][np.random.randint(0, amount_of_good)]
-            random_dphi = (angles_array[50000 * chunk :50000 * (chunk + 1), 8:16])[good_angle_indices, ...][np.random.randint(0, amount_of_good)]
-
-            fishVect = np.zeros((24))
-            fishVect[0] = seglen
-            fishVect[1] = 2
-            fishVect[2] = point_of_new_fish[0]
-            fishVect[3] = point_of_new_fish[1]
-            fishVect[4] = 0
-            fishVect[5] = theta0
-            fishVect[6:14] = random_dtheta
-            fishVect[14] = phi0
-            fishVect[15:23] = random_dphi
-            fishVect[23] = gamma0
-
-            overLappingFishVectList.append(fishVect)
-            break
-
-    return fishVectList + overLappingFishVectList
-
-def generateRandomConfigurationNoLagChunks_2D(fishInView, fishInEdges, OverlappingFish):
-    averageSizeOfFish = Config.averageSizeOfFish
-    fishVectList = []
-
-    # generating fishes that are completely in the view, based on their keypoints
-    for _ in range(fishInView):
-        # Loop to keep on searching in case we randomly generate a fish that was not in the view
-        while True:
-            # Generating random fishVect
             xVect = np.zeros((11))
             fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
             idxlen = np.floor((fishlen - 62) / 1.05) + 1
@@ -1377,8 +940,6 @@ def generateRandomConfigurationNoLagChunks_2D(fishInView, fishInEdges, Overlappi
             seglen = 5.6 + idxlen * 0.1
             seglen = seglen[0]
             theta0 = np.random.rand(1)[0] * 2 * np.pi
-            phi0 = np.random.normal(loc=0, scale=phi0_scale) * np.pi / 2
-            gamma0 = np.random.normal(loc=0, scale=gamma0_scale) * np.pi / 2
 
             # the chunk number represents which part of the theta array we are considering
             chunk = np.random.randint(0,10)
@@ -1404,15 +965,17 @@ def generateRandomConfigurationNoLagChunks_2D(fishInView, fishInEdges, Overlappi
 
     return fishVectList + overLappingFishVectList
 
+
 def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
     averageSizeOfFish = Config.averageSizeOfFish
     fishVectList = []
+
     # generating fishes that are completely in the view, based on their keypoints
     for _ in range(fishInView):
         # Loop to keep on searching in case we randomly generate a fish that was not in the view
         while True:
             # Generating random fishVect
-            xVect = np.zeros((22))
+            xVect = np.zeros((11))
             fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
             idxlen = np.floor((fishlen - 62) / 1.05) + 1
             seglen = 5.6 + idxlen * 0.1
@@ -1420,22 +983,14 @@ def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
             # These fish are on the top plane
             z = 1
             # seglen = 7.1
-            
+
             x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, :]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-            fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
-            idxlen = np.floor((fishlen - 62) / 1.05) + 1
-            seglen = 5.6 + idxlen * 0.1
-            seglen = seglen[0]
-            fishVect = np.zeros((24))
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
+            fishVect = np.zeros((13))
             fishVect[0] = seglen
             fishVect[1] = z
             fishVect[2:] = xVect
@@ -1461,7 +1016,7 @@ def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
             # The possible edge choices for one view are: the left edge, the right edge, the top and the bottom
             # let the numbers 0 - 3 represent these choices respectively
             edgeIdx = np.random.randint(0, 4)
-            xVect = np.zeros((22))
+            xVect = np.zeros((11))
 
             if edgeIdx < 2:
                 # We got the left or right, which means the x coordinate is constrained
@@ -1490,22 +1045,16 @@ def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
                     # x = np.random.random_integers(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
                     x = np.random.randint(0 - averageSizeOfFish / 2, imageSizeX + averageSizeOfFish / 2)
                     y = (np.random.rand() - .5) * averageSizeOfFish + imageSizeY
-            angles_array_idx = np.random.randint(0, 500000)
-            dtheta = angles_array[angles_array_idx, 0:8]
-            dphi = angles_array[angles_array_idx, 8:16]
-            xVect[:3] = [x, y, 0] # A dummy z-coordinate
-            xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-            xVect[4:12] = dtheta            
-            xVect[12] = np.pi/2 # np.random.normal(loc=0, scale=phi0_scale)
-            xVect[13:21] = dphi
-            xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-
+            theta_array_idx = np.random.randint(0, 500000)
+            dtheta = theta_array[theta_array_idx, :]
+            xVect[:2] = [x, y]
+            xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+            xVect[3:] = dtheta
             fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
             idxlen = np.floor((fishlen - 62) / 1.05) + 1
             seglen = 5.6 + idxlen * 0.1
             seglen = seglen[0]
-            
-            fishVect = np.zeros((24))
+            fishVect = np.zeros((13))
             fishVect[0] = seglen
             fishVect[1] = 1
             fishVect[2:] = xVect
@@ -1561,7 +1110,7 @@ def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
                 genFishKeypointToOverlap = np.random.randint(0, 12)
 
                 # Generating the fish
-                xVect = np.zeros((22))
+                xVect = np.zeros((11))
                 fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
                 idxlen = np.floor((fishlen - 62) / 1.05) + 1
                 seglen = 5.6 + idxlen * 0.1
@@ -1569,16 +1118,12 @@ def generateRandomConfigurationFast(fishInView, fishInEdges, OverlappingFish):
                 # seglen = 7.1
 
                 x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-                angles_array_idx = np.random.randint(0, 500000)
-                dtheta = angles_array[angles_array_idx, 0:8]
-                dphi = angles_array[angles_array_idx, 8:16]
-                xVect[:3] = [x, y, 0] # A dummy z-coordinate
-                xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-                xVect[4:12] = dtheta            
-                xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-                xVect[13:21] = dphi
-                xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-                fishVect = np.zeros((24))
+                theta_array_idx = np.random.randint(0, 500000)
+                dtheta = theta_array[theta_array_idx, :]
+                xVect[:2] = [x, y]
+                xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+                xVect[3:] = dtheta
+                fishVect = np.zeros((13))
                 fishVect[0] = seglen
                 # These fish are on the bottom plane
                 fishVect[1] = 2
@@ -1655,7 +1200,7 @@ def getIOUFishVect(ogFishVect, depth = 3):
         genFishKeypointToOverlap = np.random.randint(0, 12)
 
         # Generating the fish
-        xVect = np.zeros((22))
+        xVect = np.zeros((11))
         fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
         idxlen = np.floor((fishlen - 62) / 1.05) + 1
         seglen = 5.6 + idxlen * 0.1
@@ -1663,17 +1208,14 @@ def getIOUFishVect(ogFishVect, depth = 3):
         # seglen = 7.1
 
         x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-        angles_array_idx = np.random.randint(0, 500000)
-        dtheta = angles_array[angles_array_idx, 0:8]
-        dphi = angles_array[angles_array_idx, 8:16]
-        xVect[:3] = [x, y, 0] # A dummy z-coordinate
-        xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-        xVect[4:12] = dtheta            
-        xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-        xVect[13:21] = dphi
-        xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-        fishVect = np.zeros((24))
+        theta_array_idx = np.random.randint(0, 500000)
+        dtheta = theta_array[theta_array_idx, :]
+        xVect[:2] = [x, y]
+        xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+        xVect[3:] = dtheta
+        fishVect = np.zeros((13))
         fishVect[0] = seglen
+        # These fish are on the bottom plane
         fishVect[1] = depth
         fishVect[2:] = xVect
         pts = x_seglen_to_3d_points(xVect, seglen)
@@ -1808,7 +1350,7 @@ def getNonIOUFish(bb,ogFishVect, depth = 3):
         genFishKeypointToOverlap = np.random.randint(0, 12)
 
         # Generating the fish
-        xVect = np.zeros((22))
+        xVect = np.zeros((11))
         fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
         idxlen = np.floor((fishlen - 62) / 1.05) + 1
         seglen = 5.6 + idxlen * 0.1
@@ -1816,22 +1358,16 @@ def getNonIOUFish(bb,ogFishVect, depth = 3):
         # seglen = 7.1
 
         x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-        angles_array_idx = np.random.randint(0, 500000)
-        dtheta = angles_array[angles_array_idx, 0:8]
-        dphi = angles_array[angles_array_idx, 8:16]
-        xVect[:3] = [x, y, 0] # A dummy z-coordinate
-        xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-        xVect[4:12] = dtheta            
-        xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-        xVect[13:21] = dphi
-        xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-        fishVect = np.zeros((24))
-
-        # These fish are on the bottom plane
+        theta_array_idx = np.random.randint(0, 500000)
+        dtheta = theta_array[theta_array_idx, :]
+        xVect[:2] = [x, y]
+        xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+        xVect[3:] = dtheta
+        fishVect = np.zeros((13))
         fishVect[0] = seglen
+        # These fish are on the bottom plane
         fishVect[1] = depth
         fishVect[2:] = xVect
-            
         pts = x_seglen_to_3d_points(xVect, seglen)
         point = pts[:, genFishKeypointToOverlap]
         distance = ogPoint - point
@@ -1870,7 +1406,7 @@ def generateRandomConfigurationIOU(overlappingFish, overlappingFish2):
     fishVect = None
 
     while True:
-        xVect = np.zeros((22))
+        xVect = np.zeros((11))
         fishlen = (np.random.rand(1) - 0.5) * 30 + averageSizeOfFish
         idxlen = np.floor((fishlen - 62) / 1.05) + 1
         seglen = 5.6 + idxlen * 0.1
@@ -1880,18 +1416,12 @@ def generateRandomConfigurationIOU(overlappingFish, overlappingFish2):
         # seglen = 7.1
 
         x, y = np.random.randint(0, imageSizeX), np.random.randint(0, imageSizeY)
-        angles_array_idx = np.random.randint(0, 500000)
-        dtheta = angles_array[angles_array_idx, 0:8]
-        dphi = angles_array[angles_array_idx, 8:16]
-        xVect[:3] = [x, y, 0] # A dummy z-coordinate
-        xVect[3] = np.random.rand(1)[0] * 2 * np.pi
-        xVect[4:12] = dtheta            
-        xVect[12] = np.random.normal(loc=0, scale=phi0_scale)
-        xVect[13:21] = dphi
-        xVect[21] = np.random.normal(loc=0, scale=gamma0_scale)
-        fishVect = np.zeros((24))
-
-        # These fish are on the bottom plane
+        theta_array_idx = np.random.randint(0, 500000)
+        dtheta = theta_array[theta_array_idx, :]
+        xVect[:2] = [x, y]
+        xVect[2] = np.random.rand(1)[0] * 2 * np.pi
+        xVect[3:] = dtheta
+        fishVect = np.zeros((13))
         fishVect[0] = seglen
         fishVect[1] = z
         fishVect[2:] = xVect

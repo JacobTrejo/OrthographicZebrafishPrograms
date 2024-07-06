@@ -2,12 +2,9 @@ from Programs.Config import Config
 import numpy as np
 import numpy.ma as ma
 import cv2 as cv
-import math
 from skimage.util import random_noise
-from scipy import signal
 
 # Auxilary Functions
-
 def roundHalfUp(a):
     """
     Function that rounds the way that matlab would. Necessary for the program to run like the matlab version
@@ -136,7 +133,6 @@ def mergeGreys(grays, depths):
     maxes = np.max(grays, axis=0)
 
     # will be used as the ordered version of brightnesses greater than the threshold
-    
     grays[grays < threshold] = 0
     graysBiggerThanThresholdMerged, _, _ = mergeGreysExactly(grays, depths)
 
@@ -149,9 +145,6 @@ def mergeGreys(grays, depths):
     mergedGrays[ indicesToBlurr ] = maxes[indicesToBlurr]
 
     # NOTE: we could technically also blurr the depths?
-    # Added by Aniket. NOTE for Jacob: We can discuss this
-    mergedGrays = signal.medfilt2d(mergedGrays, kernel_size=3)
-    
     return mergedGrays, mergedDepths
 
 def mergeViews(views_list):

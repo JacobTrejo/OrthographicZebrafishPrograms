@@ -175,7 +175,7 @@ class Aquarium:
         strIdxInFormat = format(self.frame_idx, '06d')
         filename = 'zebrafish_' + strIdxInFormat + '.png'
         imagesPath += filename
-        success = cv.imwrite(imagesPath, self.finalViews[0][0])
+        cv.imwrite(imagesPath, self.finalViews[0][0])
 
     # For Debbuging
     def get_image(self):
