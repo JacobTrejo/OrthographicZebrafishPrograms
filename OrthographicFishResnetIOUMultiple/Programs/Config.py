@@ -18,6 +18,46 @@ class Config:
     shouldSaveImages = True
     shouldSaveAnnotations = True
 
+
+    # Rendering parameters
+    # Zebrafish
+    """
+    c_eyes = 1.9 
+    c_head = 1.04
+    c_belly = 0.98
+    d_eye = 1
+    eyes_br = 235
+    head_br = 0.64 # wrt belly
+    belly_br = 0.83 # wrt eyes
+    eye_w = 0.22
+    eye_l = 0.35 
+    eye_h = 0.3
+    head_w = 0.3
+    head_l = 0.86
+    head_h = 0.53
+    belly_w = 0.29
+    belly_l = 0.86
+    belly_h = 0.34
+    """
+
+    # Danionella
+    c_eyes = 3.0524
+    c_head = 2.5001
+    c_belly = 1.3485
+    d_eye = 0.7676
+    eyes_br = 368.9
+    head_br = 0.51 # wrt belly
+    belly_br = 0.57 # wrt eyes
+    eye_w = 0.1650
+    eye_l = 0.2375
+    eye_h = 0.3
+    head_w = 0.4575
+    head_l = 0.7876
+    head_h = 0.53
+    belly_w = 0.4622
+    belly_l = 1.2540
+    belly_h = 0.34
+
     # Noise Variables
     shouldAddPatchyNoise = True
     shouldAddStaticNoise = True

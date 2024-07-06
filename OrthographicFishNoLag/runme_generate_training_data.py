@@ -1,3 +1,7 @@
+"""
+Render synthetic images of fish to train a YOLO model
+"""
+
 from Programs.Config import Config
 from Programs.Aquarium import Aquarium
 from Programs.programsForGeneratingFish import x_seglen_to_3d_points, addBoxes
@@ -9,6 +13,8 @@ import time
 from scipy.io import loadmat
 import cv2 as cv
 
+
+np.random.seed(0)
 # This part is to get the indices, this part can be hardcoded #########
 amount_of_boxes = 9
 temp_arr = np.array(range(amount_of_boxes))
@@ -58,7 +64,7 @@ if __name__ == '__main__':
      amount = Config.amountOfData
      pool_obj = multiprocessing.Pool(initializer=init_pool_process)
      #amount = 50000
-     amount = 5
+     amount = 50000
      pool_obj.map(genData, range(0,amount))
      pool_obj.close()
      endTime = time.time()
