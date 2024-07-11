@@ -1070,7 +1070,7 @@ if shouldGetData:
             results = model.predict(frames, verbose = False, stream = True)
             for resultIdx, result in enumerate(results):
                 frame = frames[resultIdx]
-                confidence_mask = result.boxes.conf.cpu().numpy() > .7  # Making sure the predictions are accurate
+                confidence_mask = result.boxes.conf.cpu().numpy() > .6  # Making sure the predictions are accurate
                 boxes =  result.boxes.xyxy.cpu().numpy()[confidence_mask]
                 classes = result.boxes.cls.cpu().numpy()[confidence_mask]
                 keypoints = result.keypoints.xy.cpu().numpy()[confidence_mask]
