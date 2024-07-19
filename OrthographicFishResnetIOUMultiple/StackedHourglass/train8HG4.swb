@@ -15,5 +15,6 @@ echo Module loaded
 
 #python runme.py -t '../data'  -e 100
 
-python train4.py -c test_run_8HG 
+#python train4.py -c test_run_8HG
+python train4.py -e test_run_8HG
 echo Done
