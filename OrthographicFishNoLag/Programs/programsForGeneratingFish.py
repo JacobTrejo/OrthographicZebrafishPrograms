@@ -20,7 +20,7 @@ original, offset = np.meshgrid(temp_arr, temp_arr)
 original += offset
 original = np.remainder(original, amount_of_boxes)
 indices_for_permutation = list(np.concatenate([original[rowIdx, :] for rowIdx in range(amount_of_boxes)], axis=0))
-# end of getting indices ################################################
+# end of getting indices ###############################################
 
 
 # Rotate along x axis. Angles are accepted in radians
@@ -308,7 +308,7 @@ def get_good_dtheta_indices_chuncks(x,y,theta0,seglen, overlappingFishVectList, 
 ####################### End of New Functions
 
 
-def x_seglen_to_3d_points_vectorized(x, seglen):
+def x_seglen_to_3d_points_vectorized_unused(x, seglen):
     hp = x[0: 2]
     dt = x[2: 11]
     pt = np.zeros((2, 10))

@@ -218,7 +218,7 @@ def draw_anterior_b(seglen, theta, phi, gamma, dh1, dh2, dimension, size_lut, ra
     eye_w = seglen * Config.eye_w * rand1_eye
     eye_l = seglen * Config.eye_l * rand2_eye
     eye_h = seglen * Config.eye_h
-    belly_w = seglen * Config.belly_br * rand1_belly
+    belly_w = seglen * Config.belly_w * rand1_belly
     belly_l = seglen * Config.belly_l * rand2_belly
     belly_h = seglen * Config.belly_h
     head_w = seglen * Config.head_w * rand1_head

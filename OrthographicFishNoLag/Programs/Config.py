@@ -40,7 +40,8 @@ class Config:
     belly_h = 0.34
     """
 
-    # Danionella
+    # Danionella: Kristin's videos
+    """
     c_eyes = 3.0524
     c_head = 2.5001
     c_belly = 1.3485
@@ -57,7 +58,25 @@ class Config:
     belly_w = 0.4622
     belly_l = 1.2540
     belly_h = 0.34
+    """
 
+    # Danionella: Chie's videos
+    c_eyes = 3.049
+    c_head = 2.502
+    c_belly = 1.35
+    d_eye = 0.770
+    eyes_br = 368.901
+    head_br = 0.510 # wrt belly
+    belly_br = 0.573 # wrt eyes
+    eye_w = 0.175
+    eye_l = 0.248
+    eye_h = 0.3
+    head_w = 0.475
+    head_l = 0.844
+    head_h = 0.53
+    belly_w = 0.324
+    belly_l = 1.31
+    belly_h = 0.34
 
     # Noise Variables
     shouldAddPatchyNoise = True
