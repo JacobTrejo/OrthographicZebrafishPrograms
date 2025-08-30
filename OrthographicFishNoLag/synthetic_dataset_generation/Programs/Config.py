@@ -20,7 +20,7 @@ class Config:
     fractionForTraining = .9
     shouldSaveImages = True
     shouldSaveAnnotations = True
-    intrinsics_yaml_file = '/groups/branson/bransonlab/aniket/track_multiple_fish/forked_version/OrthographicZebrafishPrograms/OrthographicFishNoLag/synthetic_dataset_generation/Programs/akihiro_intrinsic_parameters.yaml'
+    intrinsics_yaml_file = 'Programs/akihiro_intrinsic_parameters.yaml'
     
     # Rendering parameters
     # Zebrafish
