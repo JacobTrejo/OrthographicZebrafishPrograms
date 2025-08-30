@@ -1,0 +1,14 @@
+# configuration file for variables used in the program
+
+# 600 x 740 for Chie's videos
+imageSizeY: 1200 #700
+imageSizeX: 1920 #1280
+  #averageSizeOfFish: None
+
+dataDirectory: 'akihiro_synthetic_data_side_test'
+
+#shouldAddPatchyNoise: False
+#shouldAddStaticNoise: False
+# Small values for debugging purposes
+amountOfData: 50
+fractionForTraining: .9
