@@ -1,6 +1,7 @@
 import yaml
 import warnings
 import os
+from Programs.load_intrinsic_parameters import load_intrinsic_parameters
 
 class Config:
     """
@@ -9,15 +10,17 @@ class Config:
     #   Default values
 
     # General Variables
-    imageSizeY = 623
-    imageSizeX = 1248
-    averageSizeOfFish = 70
+    # 632, 1248 for Chie's videos
+    # The following values are set only if they are not defined in Input/config.yaml
+    imageSizeY = 890 #700
+    imageSizeX = 1645 #1280
     randomizeFish = 1
-    dataDirectory = 'data'
-    amountOfData = 50000
+    dataDirectory = 'dataset'
+    amountOfData = 1
     fractionForTraining = .9
     shouldSaveImages = True
     shouldSaveAnnotations = True
+    intrinsics_yaml_file = '/groups/branson/bransonlab/aniket/track_multiple_fish/forked_version/OrthographicZebrafishPrograms/OrthographicFishNoLag/synthetic_dataset_generation/Programs/akihiro_intrinsic_parameters.yaml'
     
     # Rendering parameters
     # Zebrafish
@@ -40,8 +43,8 @@ class Config:
     belly_h = 0.34
     """
 
-    # Danionella: Kristin's videos
     """
+    # Danionella: Kristin's videos
     c_eyes = 3.0524
     c_head = 2.5001
     c_belly = 1.3485
@@ -60,12 +63,37 @@ class Config:
     belly_h = 0.34
     """
 
-    # Danionella: Chie's videos
+    # Danionella: Kristin's videos with wild type fish
+    """
+    c_eyes = 3.051
+    c_head = 2.5001
+    c_belly = 1.347
+    d_eye = 0.65
+    eyes_br = 360.5
+    head_br = 0.51 # wrt belly
+    belly_br = 0.57 # wrt eyes
+    eye_w = 0.1852
+    eye_l = 0.261
+    eye_h = 0.3
+    head_w = 0.563
+    head_l = 0.885
+    head_h = 0.34
+    belly_w = 0.339
+    belly_l = 1.467
+    belly_h = 0.34
+    """
+
+    c_eyes, c_head, c_belly, d_eye, eyes_br, head_br, belly_br, eye_w, eye_l, eye_h, head_w, head_l, head_h, belly_w, belly_l, belly_h, seglen, ball_size, tail_thickness, tail_br = load_intrinsic_parameters(intrinsics_yaml_file)
+    averageSizeOfFish = ((seglen -5.6) / 0.1 - 1)* 1.05 + 62
+    
+    # Danionella: Chie's videos (arena does not have index matched cage)
+    """   
     c_eyes = 3.049
     c_head = 2.502
     c_belly = 1.35
     d_eye = 0.770
     eyes_br = 368.901
+    eyes_br = 375 # Manually selected
     head_br = 0.510 # wrt belly
     belly_br = 0.573 # wrt eyes
     eye_w = 0.175
@@ -73,21 +101,27 @@ class Config:
     eye_h = 0.3
     head_w = 0.475
     head_l = 0.844
+    head_l = 0.82 # Manually selected
     head_h = 0.53
     belly_w = 0.324
     belly_l = 1.31
     belly_h = 0.34
+    """
+
+    # Danionella: Chie's videos (arena has index matched cage)
 
     # Noise Variables
     shouldAddPatchyNoise = True
+    shouldAddNoisySpots = True
     shouldAddStaticNoise = True
-    averageAmountOfPatchyNoise = .2
+    averageAmountOfPatchyNoise = .3 # Rate of Poisson process
+    averageAmountOfNoisySpots = 10 # Rate of Poisson process
 
     #   Variable relating to the distribution of the fish
-    maxFishesInView = 12
+    maxFishesInView = 5
     # The following variable is used as the lambda value for a poisson distribution
-    averageFishInEdges = 3
-    overlappingFishFrequency = .5
+    averageFishInEdges = 0
+    overlappingFishFrequency = .3
     # The following variable is the minimum distance 2 overlapping fishes will be
     maxOverlappingOffset = 10
     # List which controls how many overlaps a single fish will have based on a normal random variable
@@ -95,8 +129,8 @@ class Config:
     # it starts from 0 overlaps, 1 overlap, 2 overlap ....
     # ex : for [.5, .95, 1.0] it implies a 50 % of the fish not having an overlap, 45% chance of an overlap with 1 fish
     #      and a 5% chance of an overlap with 2 fish
-    overlapMarker = [.5, .95, 1.0]
-
+    overlapMarker = [.50, .95, 1.]
+    constantFishesInArena = True
     #   Thresholds
     # This threshold is used when sequential keypoints of a fish have an x or y value that are about the same
     # and stops it from generating a box that captures that part of the fish

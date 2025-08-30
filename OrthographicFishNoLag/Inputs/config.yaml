@@ -1,7 +1,7 @@
 # configuration file for variables used in the program
 
-imageSizeY: 640
-imageSizeX: 640
+imageSizeY: 623
+imageSizeX: 1243
 averageSizeOfFish: 70
 
 dataDirectory: 'data'

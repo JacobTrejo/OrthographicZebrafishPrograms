@@ -1,0 +1,40 @@
+x_distribution: np.random.normal(49.335, 0.01)
+x_u: 49.335
+y_distribution: np.random.normal(44.163, 0.01)
+y_u: 44.163
+theta_distribution: np.random.normal(0.844, 0.01)
+theta_u: 0.844
+seglen_distribution: np.random.normal(9.43, 0.01)
+seglen_u: 9.43
+d_eye_distribution: np.random.normal(0.759, 0.01)
+d_eye_u: 0.759
+c_eye_distribution: np.random.normal(3.172, 0.01)
+c_eye_u: 3.172
+c_belly_distribution: np.random.normal(1.474, 0.01)
+c_belly_u: 1.474
+c_head_distribution: np.random.normal(2.596, 0.01)
+c_head_u: 2.596
+eye_br_distribution: np.random.normal(207.817, 0.01)
+eye_br_u: 207.817
+belly_br_distribution: np.random.normal(0.581, 0.01)
+belly_br_u: 0.581
+head_br_distribution: np.random.normal(0.628, 0.01)
+head_br_u: 0.628
+eye_w_distribution: np.random.normal(0.179, 0.01)
+eye_w_u: 0.179
+eye_l_distribution: np.random.normal(0.312, 0.01)
+eye_l_u: 0.312
+belly_w_distribution: np.random.normal(0.359, 0.01)
+belly_w_u: 0.359
+belly_l_distribution: np.random.normal(1.064, 0.01)
+belly_l_u: 1.064
+head_w_distribution: np.random.normal(0.355, 0.01)
+head_w_u: 0.355
+head_l_distribution: np.random.normal(0.667, 0.01)
+head_l_u: 0.667
+ball_size_distribution: np.random.normal(1.806, 0.01)
+ball_size_u: 1.806
+ball_thickness_distribution: np.random.normal(2.03, 0.01)
+ball_thickness_u: 2.03
+tail_br_distribution: np.random.normal(0.516, 0.01)
+tail_br_u: 0.516
