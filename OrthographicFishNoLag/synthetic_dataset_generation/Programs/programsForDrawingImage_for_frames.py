@@ -127,8 +127,8 @@ def project(model, dimension):
 
     if dimension == 0:
         projection = np.squeeze(np.sum(model, axis=dimension))
-        #projection = projection.T
-        #projection = np.flip(projection, axis=0)
+        projection = projection.T
+        projection = np.flip(projection, axis=0)
         
 
     elif dimension == 1:
@@ -527,7 +527,7 @@ def projection_function_3D_to_2D(pt_3D, cam='bottom'):
     if cam == 'bottom':
         pt_2D = pt_3D[0:2, :]
     elif cam == 'side':
-        pt_2D = pt_3D[[0, 2], :]
+        pt_2D = pt_3D[[1, 2], :]
     return pt_2D
 
 
@@ -586,10 +586,10 @@ def f_x_to_model_centered(x, seglen, randomize, cam='bottom'):
     pt_2D[0, :] = pt_2D[0, :] - new_origin[0]
     pt_2D[1, :] = pt_2D[1, :] - new_origin[1]
 
-    eye1_c = eye1_c - (size_half - 1) + pt_2D[:, 1]
-    eye2_c = eye2_c - (size_half - 1) + pt_2D[:, 1]
     eye1_c_2D = projection_function_3D_to_2D(eye1_c, cam)
     eye2_c_2D = projection_function_3D_to_2D(eye2_c, cam)
+    eye1_c_2D = eye1_c_2D - (size_half - 1) + pt_2D[:, 1, None] - 1
+    eye2_c_2D = eye2_c_2D - (size_half - 1) + pt_2D[:, 1, None] - 1
 
     #eye1_c[0] = eye1_c[0] - (size_half - 1) + pt_2D[0, 1]
     #eye1_c[1] = eye1_c[1] - (size_half - 1) + pt_2D[1, 1]
