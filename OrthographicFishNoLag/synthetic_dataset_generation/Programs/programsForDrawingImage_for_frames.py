@@ -105,8 +105,9 @@ def drawEllipsoid(canvas, elpsd_ct, elpsd_a, elpsd_b, elpsd_c, brightness, theta
     XX = XX - elpsd_ct[0]
     YY = YY - elpsd_ct[1]
     ZZ = ZZ - elpsd_ct[2]
+    rot_mat = (rotz(theta) @ roty(phi) @ rotx(gamma)).T
     # Reorient the ellipsoid based on input angles
-    rot_mat = rotx(-gamma) @ roty(-phi) @ rotz(-theta)
+    #rot_mat = rotx(-gamma) @ roty(-phi) @ rotz(-theta)
     XX_transformed = rot_mat[0, 0] * XX + rot_mat[0, 1] * YY + rot_mat[0, 2] * ZZ
     YY_transformed = rot_mat[1, 0] * XX + rot_mat[1, 1] * YY + rot_mat[1, 2] * ZZ
     ZZ_transformed = rot_mat[2, 0] * XX + rot_mat[2, 1] * YY + rot_mat[2, 2] * ZZ
@@ -126,14 +127,15 @@ def project(model, dimension):
     vec = vec[mask]
 
     if dimension == 0:
-        projection = np.squeeze(np.sum(model, axis=dimension))
-        projection = projection.T
-        projection = np.flip(projection, axis=0)
-        
+        assert(1 == 0, "Model projection not implemented for dimension 0")
+        # NOTE: temporary, not using this projection
 
+        #projection = np.squeeze(np.sum(model, axis=dimension))
+        #projection = projection.T
+        #projection = np.flip(projection, axis=0)
+        
     elif dimension == 1:
-        projection = np.squeeze(np.sum(model, axis=dimension))
-        projection = np.flip(projection.T, axis=1)
+        projection = np.squeeze(np.sum(model, axis=dimension)).T
         projection = np.flip(projection, axis=0)
 
     elif dimension == 2:
@@ -520,7 +522,7 @@ def f_x_to_model_evaluation(x, seglen, randomize, imageSizeX, imageSizeY):
 #
 #     return bCanvas, pt
 
-def projection_function_3D_to_2D(pt_3D, cam='bottom'):
+def projection_function_3D_to_2D(pt_3D, cam='bottom', imageSizeX=141, imageSizeY=141):
     """
     This function returns the 2-D projection of 3-D points    
     """
@@ -528,13 +530,14 @@ def projection_function_3D_to_2D(pt_3D, cam='bottom'):
         pt_2D = pt_3D[0:2, :]
     elif cam == 'side':
         pt_2D = pt_3D[[1, 2], :]
+        pt_2D[1, :] = (imageSizeY - 1) - pt_2D[1, :]  # Flip y-axis for side view to match image coordinates
     return pt_2D
 
 
 # Making a function that always draws a fish in the center to allow us to draw fishes on the edges without crashing
 def f_x_to_model_centered(x, seglen, randomize, cam='bottom'):
     if cam == 'side':
-        dimension = 0
+        dimension = 1
     elif cam == 'bottom':
         dimension = 2
     smallImageSizeX, smallImageSizeY = 141, 141
@@ -583,11 +586,12 @@ def f_x_to_model_centered(x, seglen, randomize, cam='bottom'):
     imageSizeX = smallImageSizeX
     imageSizeY = smallImageSizeY
 
+
     pt_2D[0, :] = pt_2D[0, :] - new_origin[0]
     pt_2D[1, :] = pt_2D[1, :] - new_origin[1]
 
-    eye1_c_2D = projection_function_3D_to_2D(eye1_c, cam)
-    eye2_c_2D = projection_function_3D_to_2D(eye2_c, cam)
+    eye1_c_2D = projection_function_3D_to_2D(eye1_c, cam, size_lut, size_lut)
+    eye2_c_2D = projection_function_3D_to_2D(eye2_c, cam, size_lut, size_lut)
     eye1_c_2D = eye1_c_2D - (size_half - 1) + pt_2D[:, 1, None] - 1
     eye2_c_2D = eye2_c_2D - (size_half - 1) + pt_2D[:, 1, None] - 1
 
